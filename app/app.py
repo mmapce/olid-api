@@ -11,11 +11,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import pickle, os
 from typing import List
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
 
 APP_TITLE = "Tweet Foul-Language Detector"
 APP_VERSION = "1.2"
 
 app = FastAPI(title=APP_TITLE, version=APP_VERSION)
+
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "static")
+if os.path.isdir(STATIC_DIR):
+    app.mount("/ui", StaticFiles(directory=STATIC_DIR), name="ui")
+
+@app.get("/ui")
+def ui_index():
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 # (Opsiyonel) CORS: gerekirse origin kısıtlayabilirsin.
 app.add_middleware(
