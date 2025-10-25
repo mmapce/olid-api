@@ -17,3 +17,5 @@ ENV PORT=8080
 
 # 6️⃣ FastAPI’yi uvicorn ile başlat
 CMD ["uvicorn", "app.app:app", "--host", "0.0.0.0", "--port", "8080"]
+
+COPY static ./static
