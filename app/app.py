@@ -22,11 +22,7 @@ app = FastAPI(title=APP_TITLE, version=APP_VERSION)
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "static")
 if os.path.isdir(STATIC_DIR):
-    app.mount("/ui", StaticFiles(directory=STATIC_DIR), name="ui")
-
-@app.get("/ui")
-def ui_index():
-    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+    app.mount("/ui", StaticFiles(directory=STATIC_DIR, html=True), name="ui")
 
 # (Opsiyonel) CORS: gerekirse origin kısıtlayabilirsin.
 app.add_middleware(
@@ -73,9 +69,14 @@ class PredictOut(BaseModel):
 class BatchIn(BaseModel):
     texts: List[str] = Field(..., min_length=1, max_length=100, description="Sınıflandırılacak metinler listesi (1-100 arası)")
 
+
+class PredItem(BaseModel):
+    text: str
+    prediction: int
+    prob_foul: float
+
 class BatchOut(BaseModel):
-    predictions: List[int]
-    prob_foul: List[float]
+    results: List[PredItem]
     threshold: float
 
 # ----- Yardımcı -----
@@ -106,7 +107,11 @@ def predict_batch(inp: BatchIn):
     ensure_model()
     probs = _pipeline.predict_proba(inp.texts)[:, 1].tolist()
     preds = [int(p >= _threshold) for p in probs]
-    return BatchOut(predictions=preds, prob_foul=probs, threshold=_threshold)
+    results = [
+        PredItem(text=t, prediction=preds[i], prob_foul=float(probs[i]))
+        for i, t in enumerate(inp.texts)
+    ]
+    return BatchOut(results=results, threshold=float(_threshold))
 
 @app.post("/admin/reload", summary="(Admin) modeli yeniden yükle")
 def admin_reload():
