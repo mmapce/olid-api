@@ -58,7 +58,6 @@
   </div>
 
 <script>
-  // Same Cloud Run service:
   const API_URL = window.location.origin;
   document.getElementById("docs").href = API_URL + "/docs";
 
@@ -69,7 +68,6 @@
 
   function escapeHTML(s){return s.replace(/[&<>]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 
-  // CSV loader: expects 'text' column OR plain lines
   file.addEventListener("change", async e => {
     const f = e.target.files[0];
     if(!f) return;
@@ -116,8 +114,9 @@
 
     try{
       const payload = await predictBatch(lines, thr.value || 0.50);
+      console.log("payload:", payload);
 
-      // normalize response: array root or {results|predictions|items|data: [...]}
+      // Normalize response
       let results = Array.isArray(payload)
         ? payload
         : (payload.results || payload.predictions || payload.items || payload.data || []);
@@ -125,19 +124,28 @@
         throw new Error("Unexpected response shape: " + JSON.stringify(payload).slice(0,200));
       }
 
-      // render table
       tbody.innerHTML = "";
       let foul=0, proper=0;
       results.forEach((r,i)=>{
         const tr = document.createElement("tr");
-        const yhat = (r.prediction ?? r.label ?? r.y_hat ?? r.yhat ?? 0);
+
+        // prediction: support number or boolean and multiple keys
+        const yraw = (r.prediction ?? r.label ?? r.y_hat ?? r.yhat ?? r.is_foul);
+        const yhat = (yraw === true) ? 1 : (yraw === false ? 0 : (Number(yraw) || 0));
+
         const badge = yhat===1
           ? '<span class="px-2 py-0.5 rounded text-xs bg-rose-600/20 text-rose-300 border border-rose-700/40">FOUL</span>'
           : '<span class="px-2 py-0.5 rounded text-xs bg-emerald-600/20 text-emerald-300 border border-emerald-700/40">PROPER</span>';
+
+        // probability field variants
         const p = (r.prob_foul ?? r.prob ?? r.score ?? 0);
+
+        // show backend text if provided; fallback to pasted line
+        const shownText = r.text ? String(r.text) : lines[i];
+
         tr.innerHTML = `
           <td class="p-2 align-top text-zinc-400">${i+1}</td>
-          <td class="p-2 align-top">${escapeHTML(lines[i])}</td>
+          <td class="p-2 align-top">${escapeHTML(shownText)}</td>
           <td class="p-2 align-top">${badge}</td>
           <td class="p-2 align-top">${Number(p).toFixed(3)}</td>`;
         tbody.appendChild(tr);
@@ -157,7 +165,6 @@
     }
   });
 
-  // Export current table to CSV
   btnExport.addEventListener("click", ()=>{
     const rows = [["idx","text","prediction","prob_foul"]];
     const trs = [...tbody.querySelectorAll("tr")];
