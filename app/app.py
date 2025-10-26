@@ -1,10 +1,5 @@
 # app/app.py
-# (TR) Tweet Foul-Language API
-# - model.pkl: {'pipeline': <sklearn Pipeline>, 'threshold': float}
-# - /           : sağlık kontrolü
-# - /predict    : tek metin tahmini
-# - /predict/batch : toplu metin tahmini (1-100)
-# Not: artifacts/model.pkl yoksa 503 döner (açık hata mesajı).
+# LÜTFEN DOSYANIZIN TAMAMINI BU İÇERİKLE DEĞİŞTİRİN
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,6 +9,11 @@ from typing import List
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
+from pathlib import Path
+
+# --- EKLENMESİ GEREKEN KÜTÜPHANE ---
+import re
+# --- SON ---
 
 APP_TITLE = "Tweet Foul-Language Detector"
 APP_VERSION = "1.2"
@@ -24,18 +24,14 @@ STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "static")
 if os.path.isdir(STATIC_DIR):
     app.mount("/ui", StaticFiles(directory=STATIC_DIR, html=True), name="ui")
 
-# (Opsiyonel) CORS: gerekirse origin kısıtlayabilirsin.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # prod'da kendi domainini yaz
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-from pathlib import Path
-
-# Proje kökü = bu dosyanın (app/app.py) iki üstü
 BASE_DIR = Path(__file__).resolve().parents[1]
 MODEL_PATH = BASE_DIR / "artifacts" / "model.pkl"
 
@@ -43,7 +39,6 @@ _pipeline = None
 _threshold = None
 
 def _load_model():
-    """Pickle'dan modeli yükle. Dosya yoksa None bırak."""
     global _pipeline, _threshold
     if not os.path.exists(MODEL_PATH):
         _pipeline, _threshold = None, None
@@ -54,21 +49,50 @@ def _load_model():
     _threshold = float(obj["threshold"])
     return True
 
-# Uygulama başlarken bir kez dene
 _load_model()
 
-# ----- Şemalar -----
+
+# --- GÜNCELLEME 1: 'train_olid_V1.py' dosyasından clean_tweet fonksiyonunu kopyalayın ---
+EMOJI_PATTERN = re.compile(
+    "["
+    "\U0001F600-\U0001F64F"
+    "\U0001F300-\U0001F5FF"
+    "\U0001F680-\U0001F6FF"
+    "\U0001F1E0-\U0001F1FF"
+    "\u2600-\u26FF"
+    "\u2700-\u27BF"
+    "]+",
+    flags=re.UNICODE
+)
+
+def clean_tweet(text):
+    if not isinstance(text, str):
+        return ""
+    text = text.lower()
+    text = re.sub(r"http\S+|www\S+|https\S+", "", text)  # URL
+    text = re.sub(r"@\w+", "", text)  # Mention
+    text = re.sub(r"#", "", text)  # Hashtag sembolü
+    text = EMOJI_PATTERN.sub("", text)  # Emoji kaldır
+    text = re.sub(r"\d+", "", text)  # Sayılar
+    # Noktalama işaretlerini kaldırma (r"[^\w\s]") adımı
+    # char_wb kullandığımız için eğitim script'inde kaldırılmıştı.
+    # Burada da OLMAMASI gerekiyor.
+    text = re.sub(r"\s+", " ", text).strip()  # Fazla boşluk
+    return text
+# --- GÜNCELLEME 1 SONU ---
+
+
+# ----- Şemalar (Değişiklik yok) -----
 class TextIn(BaseModel):
     text: str = Field(..., min_length=1, description="Sınıflandırılacak metin")
 
 class PredictOut(BaseModel):
-    prediction: int   # 1=foul, 0=proper
-    prob_foul: float  # [0,1]
+    prediction: int
+    prob_foul: float
     threshold: float
 
 class BatchIn(BaseModel):
     texts: List[str] = Field(..., min_length=1, max_length=100, description="Sınıflandırılacak metinler listesi (1-100 arası)")
-
 
 class PredItem(BaseModel):
     text: str
@@ -79,7 +103,6 @@ class BatchOut(BaseModel):
     results: List[PredItem]
     threshold: float
 
-# ----- Yardımcı -----
 def ensure_model():
     if _pipeline is None or _threshold is None:
         raise HTTPException(status_code=503, detail="Model yüklü değil. artifacts/model.pkl bulunamadı.")
@@ -98,14 +121,24 @@ def root():
 @app.post("/predict", response_model=PredictOut, summary="Tek metin tahmini")
 def predict(inp: TextIn):
     ensure_model()
-    proba = float(_pipeline.predict_proba([inp.text])[:, 1][0])
+
+    # --- GÜNCELLEME 2: Tekli tahmin için temizleme ---
+    clean_text = clean_tweet(inp.text)
+    proba = float(_pipeline.predict_proba([clean_text])[:, 1][0])
+    # --- GÜNCELLEME 2 SONU ---
+
     pred = int(proba >= _threshold)
     return PredictOut(prediction=pred, prob_foul=proba, threshold=_threshold)
 
 @app.post("/predict/batch", response_model=BatchOut, summary="Toplu metin tahmini (1-100)")
 def predict_batch(inp: BatchIn):
     ensure_model()
-    probs = _pipeline.predict_proba(inp.texts)[:, 1].tolist()
+
+    # --- GÜNCELLEME 3: Toplu tahmin için temizleme ---
+    cleaned_texts = [clean_tweet(t) for t in inp.texts]
+    probs = _pipeline.predict_proba(cleaned_texts)[:, 1].tolist()
+    # --- GÜNCELLEME 3 SONU ---
+
     preds = [int(p >= _threshold) for p in probs]
     results = [
         PredItem(text=t, prediction=preds[i], prob_foul=float(probs[i]))
@@ -117,8 +150,6 @@ def predict_batch(inp: BatchIn):
 def admin_reload():
     ok =_load_model()
     return {"reloaded": ok, "model_loaded": _pipeline is not None, "threshold": _threshold}
-
-import os
 
 @app.get("/debug/paths")
 def debug_paths():

@@ -58,7 +58,11 @@
   </div>
 
 <script>
-  const API_URL = "https://olid-api-1078757655479.europe-west1.run.app";
+  // ================= DEĞİŞİKLİK BURADA =================
+  // const API_URL = "https://olid-api-1078757655479.europe-west1.run.app"; // ESKİ HALİ
+  const API_URL = ""; // YENİ HALİ (Lokal sunucuya göreceli istek yapar)
+  // ====================================================
+
   document.getElementById("docs").href = API_URL + "/docs";
 
   const el = (id) => document.getElementById(id);
@@ -90,6 +94,7 @@
   });
 
   async function predictBatch(texts, threshold){
+    // API_URL boş olduğu için fetch("/predict/batch", ...) çağrısı yapar
     const res = await fetch(API_URL + "/predict/batch", {
       method: "POST",
       headers: {"Content-Type":"application/json"},
