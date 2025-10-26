@@ -58,7 +58,7 @@
   </div>
 
 <script>
-  // If hosted on the same Cloud Run service:
+  // Same Cloud Run service:
   const API_URL = window.location.origin;
   document.getElementById("docs").href = API_URL + "/docs";
 
@@ -69,16 +69,14 @@
 
   function escapeHTML(s){return s.replace(/[&<>]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 
-  // CSV loader: expects a column named 'text'
+  // CSV loader: expects 'text' column OR plain lines
   file.addEventListener("change", async e => {
     const f = e.target.files[0];
     if(!f) return;
     const txt = await f.text();
-    // naive CSV parse for single 'text' column or plain txt lines
     const lines = txt.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
     let texts = [];
-    if (lines[0].toLowerCase().includes("text") && lines[0].includes(",")) {
-      // headered CSV, find 'text' column
+    if (lines[0]?.toLowerCase().includes("text") && lines[0].includes(",")) {
       const headers = lines[0].split(",").map(h=>h.trim().toLowerCase());
       const idx = headers.indexOf("text");
       if (idx >= 0){
@@ -88,7 +86,6 @@
         }
       }
     } else {
-      // treat every line as a text
       texts = lines;
     }
     input.value = texts.join("\n");
@@ -100,8 +97,13 @@
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({ texts, threshold: parseFloat(threshold) })
     });
-    if(!res.ok) throw new Error(await res.text());
-    return res.json();
+    const ct = res.headers.get("content-type") || "";
+    const body = ct.includes("application/json") ? await res.json() : await res.text();
+    if(!res.ok){
+      const msg = typeof body === "string" ? body : JSON.stringify(body);
+      throw new Error(msg);
+    }
+    return body;
   }
 
   btn.addEventListener("click", async () => {
@@ -113,26 +115,39 @@
     statusEl.textContent = "Predicting…";
 
     try{
-      const data = await predictBatch(lines, thr.value || 0.50);
+      const payload = await predictBatch(lines, thr.value || 0.50);
+
+      // normalize response: array root or {results|predictions|items|data: [...]}
+      let results = Array.isArray(payload)
+        ? payload
+        : (payload.results || payload.predictions || payload.items || payload.data || []);
+      if (!Array.isArray(results)) {
+        throw new Error("Unexpected response shape: " + JSON.stringify(payload).slice(0,200));
+      }
+
       // render table
       tbody.innerHTML = "";
       let foul=0, proper=0;
-      data.results.forEach((r,i)=>{
+      results.forEach((r,i)=>{
         const tr = document.createElement("tr");
-        const badge = r.prediction===1
+        const yhat = (r.prediction ?? r.label ?? r.y_hat ?? r.yhat ?? 0);
+        const badge = yhat===1
           ? '<span class="px-2 py-0.5 rounded text-xs bg-rose-600/20 text-rose-300 border border-rose-700/40">FOUL</span>'
           : '<span class="px-2 py-0.5 rounded text-xs bg-emerald-600/20 text-emerald-300 border border-emerald-700/40">PROPER</span>';
+        const p = (r.prob_foul ?? r.prob ?? r.score ?? 0);
         tr.innerHTML = `
           <td class="p-2 align-top text-zinc-400">${i+1}</td>
           <td class="p-2 align-top">${escapeHTML(lines[i])}</td>
           <td class="p-2 align-top">${badge}</td>
-          <td class="p-2 align-top">${Number(r.prob_foul).toFixed(3)}</td>`;
+          <td class="p-2 align-top">${Number(p).toFixed(3)}</td>`;
         tbody.appendChild(tr);
-        if(r.prediction===1) foul++; else proper++;
+        if(yhat===1) foul++; else proper++;
       });
       tableWrap.classList.remove("hidden");
 
-      sumText.innerHTML = `Total: <b>${data.results.length}</b> • Proper: <b>${proper}</b> • Foul: <b>${foul}</b> • Threshold: <b>${data.threshold}</b>`;
+      const total = results.length;
+      const thrShown = (payload.threshold ?? parseFloat(thr.value || "0.50")).toFixed(2);
+      sumText.innerHTML = `Total: <b>${total}</b> • Proper: <b>${proper}</b> • Foul: <b>${foul}</b> • Threshold: <b>${thrShown}</b>`;
       summary.classList.remove("hidden");
       statusEl.textContent = "Done";
     }catch(err){
