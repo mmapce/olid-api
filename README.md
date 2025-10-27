@@ -6,14 +6,13 @@ This repository contains an end‑to‑end workflow for detecting offensive/foul
 - A minimal static UI for batch predictions
 - Notebooks used during exploration
 
-- >  **Live Deployment**
+## Live Deployment
 >
-> The API and web interface are fully deployed on **Google Cloud Run**.  
-> - **Base API:** [https://olid-api-1078757655479.europe-west1.run.app](https://olid-api-1078757655479.europe-west1.run.app)  
-> - **Interactive Web UI:** [https://olid-api-1078757655479.europe-west1.run.app/ui/](https://olid-api-1078757655479.europe-west1.run.app/ui/)
->
-> The Cloud Run instance automatically loads the trained model (`artifacts/model.pkl`) at startup and serves both the REST API and the UI.  
-> Local runs are still supported via `uvicorn` or Docker.
+- The API and web interface are fully deployed on **Google Cloud Run**.  
+- **Base API:** [https://olid-api-1078757655479.europe-west1.run.app](https://olid-api-1078757655479.europe-west1.run.app)
+- **Interactive Web UI:** [https://olid-api-1078757655479.europe-west1.run.app/ui/](https://olid-api-1078757655479.europe-west1.run.app/ui/)
+- The Cloud Run instance automatically loads the trained model (`artifacts/model.pkl`) at startup and serves both the REST API and the UI.  
+- Local runs are still supported via `uvicorn` or Docker.
 
 
 ## Tech stack
@@ -85,7 +84,8 @@ The service can be run locally or directly accessed via its deployed instance on
 - **Base API:** [https://olid-api-1078757655479.europe-west1.run.app](https://olid-api-1078757655479.europe-west1.run.app)  
 - **Interactive Web UI:** [https://olid-api-1078757655479.europe-west1.run.app/ui/](https://olid-api-1078757655479.europe-west1.run.app/ui/)
 
-Make sure `OLID_Project/artifacts/model.pkl` exists if running locally (created by the training step).Then run the API from the `OLID_Project/` directory.
+Make sure `OLID_Project/artifacts/model.pkl` exists if running locally (created by the training step).
+Then run the API from the `OLID_Project/` directory.
 
 
 ### Local run (pip)
@@ -178,21 +178,49 @@ Paths (relative to `OLID_Project/`):
 
 
 ## Tests
-No automated tests are included yet.
 
-TODO:
-- Add unit tests for: text cleaning, thresholding logic, metrics computation
-- Add API tests for happy paths and error handling (e.g., when `model.pkl` is missing)
-- Optionally add an integration test that exercises the full prediction flow
+Three integration tests confirm that the API behaves as expected both locally and on Google Cloud Run:
 
+| Test | Input | Expected Result |
+|------|--------|-----------------|
+| **1. Happy Path** | `"You are amazing!"` | Returns `prediction = 0` (proper) with low foul probability. (0.022) |
+| **2. Foul Example** | `"You're such an idiot"` | Returns `prediction = 1` (foul) with high foul probability. (0.639) |
+| **3. Invalid Input** | `{"text": ""}` | Returns **HTTP 422** with validation message: `"Please enter at least one line."`. |
 
-## Known notes/TODOs
-- NLTK stopwords are downloaded at runtime if missing; consider baking them into the Docker image for faster cold starts.
-- The static UI references `/model/info` which is not implemented; either add the endpoint or adjust the UI to skip it.
-- Confirm and document the exact vectorizer/classifier configuration in the README if long‑term reproducibility is required (the canonical definition lives in `train_olid_V1.py`).
+All tests passed successfully on the deployed service:  
+👉 **Web UI:** [https://olid-api-1078757655479.europe-west1.run.app/ui/](https://olid-api-1078757655479.europe-west1.run.app/ui/)  
+👉 **Base API:** [https://olid-api-1078757655479.europe-west1.run.app](https://olid-api-1078757655479.europe-west1.run.app)
+
+## Example test calls
+**Happy Path**
+
+```bash
+curl -s https://olid-api-1078757655479.europe-west1.run.app/predict \
+  -H "Content-Type: application/json" \
+  -d '{"text": "You are amazing!"}'
+```
+
+**Foul Example**
+
+```bash
+curl -s https://olid-api-1078757655479.europe-west1.run.app/predict \
+ -H "Content-Type: application/json" \
+-d '{"text": "You are such an idiot"}'
+```
+
+**Invalid Input**
+
+```bash
+curl -s https://olid-api-1078757655479.europe-west1.run.app/predict \
+  -H "Content-Type: application/json" \
+  -d '{"text": ""}'
+```
 
 
 ## License
-TODO: Add a license file (e.g., MIT, Apache‑2.0). If this is coursework, follow your institution’s policy.
+This project was developed as part of the ARI5501 Natural Language Processing course at Bahçeşehir University.
+It is intended for educational and academic use only.
 
-Contact: murat.korkmaz1@bahcesehir.edu.tr, suleyman.saritas@bahcesehir.edu.tr
+--------------------------
+
+**Contact:** murat.korkmaz1@bahcesehir.edu.tr, suleyman.saritas@bahcesehir.edu.tr
