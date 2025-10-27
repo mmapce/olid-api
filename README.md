@@ -19,8 +19,6 @@ This repository contains an end‑to‑end workflow for detecting offensive/foul
 ## Repository layout
 ```
 /Users/muratkorkmaz/Desktop/YL/NLP/Assignment 1
-├── Jupyter/
-│   └── train_olid_V1.py                      # duplicate of training script (for reference)
 ├── OLID_Project/
 │   ├── Dockerfile                            # container build for API service
 │   ├── OLID_Training_Pipeline.ipynb          # notebook
@@ -37,9 +35,6 @@ This repository contains an end‑to‑end workflow for detecting offensive/foul
 │   ├── static/
 │   │   └── index.html                        # optional static UI
 │   └── train_olid_V1.py                      # training script (main one)
-├── archive/
-│   ├── README.md                             # older readme (context)
-│   └── ...                                   # archived notebooks and data
 └── README.md                                 # this file
 ```
 
