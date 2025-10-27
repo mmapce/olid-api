@@ -19,23 +19,35 @@ This repository contains an end‑to‑end workflow for detecting offensive/foul
 ## Repository layout
 ```
 /Users/muratkorkmaz/Desktop/YL/NLP/Assignment 1
+├── Jupyter/
+│   └── train_olid_V1.py
 ├── OLID_Project/
-│   ├── Dockerfile                            # container build for API service
-│   ├── OLID_Training_Pipeline.ipynb          # notebook
+│   ├── Dockerfile
+│   ├── OLID_Training_Pipeline.ipynb
+│   ├── OLID_Training_Pipeline_v3.ipynb
 │   ├── app/
-│   │   └── app.py                            # FastAPI application (entry point: app.app:app)
-│   ├── artifacts/                            # outputs from training
+│   │   └── app.py
+│   ├── artifacts/
 │   │   ├── confusion_matrix.png
 │   │   ├── metrics.json
-│   │   └── model.pkl                         # trained pipeline + threshold
+│   │   └── model.pkl
 │   ├── data/
-│   │   ├── labeled_data.csv                  # training/eval data used by script
-│   │   └── olid.csv                          # alternative dataset variant
-│   ├── requirements.txt                      # runtime dependencies (pip)
+│   │   ├── labeled_data.csv
+│   │   └── olid.csv
+│   ├── requirements.txt
 │   ├── static/
-│   │   └── index.html                        # optional static UI
-│   └── train_olid_V1.py                      # training script (main one)
-└── README.md                                 # this file
+│   │   └── index.html
+│   └── train_olid_V1.py
+├── archive/
+│   ├── README.md
+│   ├── Notebooks/
+│   │   ├── Ass 1.ipynb
+│   │   ├── Notes.ipynb
+│   │   ├── OLID_End_to_End.ipynb
+│   │   └── OLID_End_to_End_FULL.ipynb
+│   └── data/
+│       ├── labeled_data.csv
+│       └── olid.csv
 ```
 
 
@@ -180,3 +192,4 @@ TODO:
 
 ## License
 TODO: Add a license file (e.g., MIT, Apache‑2.0). If this is coursework, follow your institution’s policy.
+
