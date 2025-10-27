@@ -46,6 +46,8 @@ This repository contains an end‑to‑end workflow for detecting offensive/foul
 │   ├── requirements.txt
 
 
+```
+
 
 ## Data
 The training script expects a CSV at `OLID_Project/data/labeled_data.csv` (default) with columns:
@@ -188,8 +190,8 @@ Three integration tests confirm that the API behaves as expected both locally an
 | **3. Invalid Input** | `{"text": ""}` | Returns **HTTP 422** with validation message: `"Please enter at least one line."`. |
 
 All tests passed successfully on the deployed service:  
-👉 **Web UI:** [https://olid-api-1078757655479.europe-west1.run.app/ui/](https://olid-api-1078757655479.europe-west1.run.app/ui/)  
-👉 **Base API:** [https://olid-api-1078757655479.europe-west1.run.app](https://olid-api-1078757655479.europe-west1.run.app)
+**Web UI:** [https://olid-api-1078757655479.europe-west1.run.app/ui/](https://olid-api-1078757655479.europe-west1.run.app/ui/)  
+**Base API:** [https://olid-api-1078757655479.europe-west1.run.app](https://olid-api-1078757655479.europe-west1.run.app)
 
 ## Example test calls
 **Happy Path**
