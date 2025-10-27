@@ -19,12 +19,7 @@ This repository contains an end‑to‑end workflow for detecting offensive/foul
 ## Repository layout
 ```
 /Users/muratkorkmaz/Desktop/YL/NLP/Assignment 1
-├── Jupyter/
-│   └── train_olid_V1.py
 ├── OLID_Project/
-│   ├── Dockerfile
-│   ├── OLID_Training_Pipeline.ipynb
-│   ├── OLID_Training_Pipeline_v3.ipynb
 │   ├── app/
 │   │   └── app.py
 │   ├── artifacts/
@@ -38,17 +33,11 @@ This repository contains an end‑to‑end workflow for detecting offensive/foul
 │   ├── static/
 │   │   └── index.html
 │   └── train_olid_V1.py
-├── archive/
-│   ├── README.md
-│   ├── Notebooks/
-│   │   ├── Ass 1.ipynb
-│   │   ├── Notes.ipynb
-│   │   ├── OLID_End_to_End.ipynb
-│   │   └── OLID_End_to_End_FULL.ipynb
-│   └── data/
-│       ├── labeled_data.csv
-│       └── olid.csv
-```
+│   ├── Dockerfile
+│   ├── Readme
+│   ├── OLID_Training_Pipeline.ipynb
+│   ├── OLID_Training_Pipeline_v3.ipynb
+
 
 
 ## Data
