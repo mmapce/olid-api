@@ -6,6 +6,15 @@ This repository contains an end‑to‑end workflow for detecting offensive/foul
 - A minimal static UI for batch predictions
 - Notebooks used during exploration
 
+- >  **Live Deployment**
+>
+> The API and web interface are fully deployed on **Google Cloud Run**.  
+> - **Base API:** [https://olid-api-1078757655479.europe-west1.run.app](https://olid-api-1078757655479.europe-west1.run.app)  
+> - **Interactive Web UI:** [https://olid-api-1078757655479.europe-west1.run.app/ui/](https://olid-api-1078757655479.europe-west1.run.app/ui/)
+>
+> The Cloud Run instance automatically loads the trained model (`artifacts/model.pkl`) at startup and serves both the REST API and the UI.  
+> Local runs are still supported via `uvicorn` or Docker.
+
 
 ## Tech stack
 - Language: Python (3.11 in Docker; 3.9+ should work locally)
@@ -72,7 +81,12 @@ Notes:
 
 
 ## Serving the model (FastAPI)
-Make sure `OLID_Project/artifacts/model.pkl` exists (created by the training step). Then run the API from the `OLID_Project/` directory.
+The service can be run locally or directly accessed via its deployed instance on **Google Cloud Run**:  
+- **Base API:** [https://olid-api-1078757655479.europe-west1.run.app](https://olid-api-1078757655479.europe-west1.run.app)  
+- **Interactive Web UI:** [https://olid-api-1078757655479.europe-west1.run.app/ui/](https://olid-api-1078757655479.europe-west1.run.app/ui/)
+
+Make sure `OLID_Project/artifacts/model.pkl` exists if running locally (created by the training step).Then run the API from the `OLID_Project/` directory.
+
 
 ### Local run (pip)
 ```bash
