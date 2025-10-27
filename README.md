@@ -181,3 +181,4 @@ TODO:
 ## License
 TODO: Add a license file (e.g., MIT, Apache‑2.0). If this is coursework, follow your institution’s policy.
 
+Contact: murat.korkmaz1@bahcesehir.edu.tr, suleyman.saritas@bahcesehir.edu.tr
