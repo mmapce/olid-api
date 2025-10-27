@@ -29,14 +29,13 @@ This repository contains an end‑to‑end workflow for detecting offensive/foul
 │   ├── data/
 │   │   ├── labeled_data.csv
 │   │   └── olid.csv
-│   ├── requirements.txt
 │   ├── static/
 │   │   └── index.html
 │   └── train_olid_V1.py
 │   ├── Dockerfile
-│   ├── Readme
+│   ├── README.md
 │   ├── OLID_Training_Pipeline.ipynb
-│   ├── OLID_Training_Pipeline_v3.ipynb
+│   ├── requirements.txt
 
 
 
