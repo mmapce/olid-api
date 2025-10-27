@@ -2,18 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>OLID Batch Tester</title>
+  <title>OLID Batch Predictor</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
+
 <body class="bg-zinc-950 text-zinc-100 min-h-screen">
-  <div class="max-w-4xl mx-auto p-6">
+  <div class="max-w-5xl mx-auto p-6">
     <header class="mb-6">
       <h1 class="text-2xl font-bold">OLID – Batch Predictor</h1>
       <p class="text-sm text-zinc-400">
         Paste one text per line or upload a CSV with a <code>text</code> column.
         Service: <a id="docs" class="underline" target="_blank">/docs</a>
       </p>
+      <div id="modelInfo" class="mt-3 text-sm text-zinc-300 bg-zinc-900 border border-zinc-800 rounded-lg p-3 hidden"></div>
     </header>
 
     <section class="space-y-3">
@@ -58,10 +60,10 @@
   </div>
 
 <script>
-  // ================= DEĞİŞİKLİK BURADA =================
-   const API_URL = "https://olid-api-1078757655479.europe-west1.run.app";  
- // const API_URL = ""; // YENİ HALİ (Lokal sunucuya göreceli istek yapar) //
-  // ====================================================
+  // =================== AYAR ===================
+  const API_URL = "https://olid-api-1078757655479.europe-west1.run.app"; // Cloud Run adresin
+  // const API_URL = ""; // Lokal için (window.location.origin)
+  // ===========================================
 
   document.getElementById("docs").href = API_URL + "/docs";
 
@@ -70,8 +72,52 @@
   const btn = el("btn"), btnExport = el("btnExport"), statusEl = el("status");
   const tbody = el("tbody"), tableWrap = el("tableWrap"), summary = el("summary"), sumText = el("sumText");
 
-  function escapeHTML(s){return s.replace(/[&<>]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+  function escapeHTML(s){return s.replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 
+  // ---- Model bilgisi yükle ----
+  async function loadModelInfo(){
+    try{
+      const res = await fetch(API_URL + "/model/info");
+      if(!res.ok) return;
+      const data = await res.json();
+      const model = data.selected_model || "N/A";
+      const thr = data.default_threshold?.toFixed(2) ?? "—";
+      const comp = data.comparison || {};
+      let rows = "";
+      for (const [name, metrics] of Object.entries(comp)) {
+        const m = metrics["@0.50"] || {};
+        rows += `<tr><td>${name}</td>
+          <td>${(m.accuracy??0).toFixed(3)}</td>
+          <td>${(m.precision??0).toFixed(3)}</td>
+          <td>${(m.recall??0).toFixed(3)}</td>
+          <td>${(m.f1_weighted??0).toFixed(3)}</td></tr>`;
+      }
+      const table = `
+        <b>Selected Model:</b> ${model} • <b>Default Threshold:</b> ${thr}
+        <div class="overflow-auto mt-2">
+          <table class="min-w-full text-xs border border-zinc-800">
+            <thead class="bg-zinc-900/60">
+              <tr>
+                <th class="p-1 text-left">Model</th>
+                <th class="p-1 text-left">Acc</th>
+                <th class="p-1 text-left">Prec</th>
+                <th class="p-1 text-left">Rec</th>
+                <th class="p-1 text-left">F1w</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+      const infoDiv = document.getElementById("modelInfo");
+      infoDiv.innerHTML = table;
+      infoDiv.classList.remove("hidden");
+    }catch(err){
+      console.warn("Model info not loaded:", err);
+    }
+  }
+  loadModelInfo();
+
+  // ---- Dosya yükleme ----
   file.addEventListener("change", async e => {
     const f = e.target.files[0];
     if(!f) return;
@@ -87,25 +133,19 @@
           if(cols[idx]) texts.push(cols[idx].trim());
         }
       }
-    } else {
-      texts = lines;
-    }
+    } else { texts = lines; }
     input.value = texts.join("\n");
   });
 
+  // ---- Tahmin işlemi ----
   async function predictBatch(texts, threshold){
-    // API_URL boş olduğu için fetch("/predict/batch", ...) çağrısı yapar
     const res = await fetch(API_URL + "/predict/batch", {
       method: "POST",
       headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ texts, threshold: parseFloat(threshold) })
+      body: JSON.stringify({ texts, threshold: parseFloat(String(threshold).replace(',','.')) })
     });
-    const ct = res.headers.get("content-type") || "";
-    const body = ct.includes("application/json") ? await res.json() : await res.text();
-    if(!res.ok){
-      const msg = typeof body === "string" ? body : JSON.stringify(body);
-      throw new Error(msg);
-    }
+    const body = await res.json();
+    if(!res.ok) throw new Error(JSON.stringify(body));
     return body;
   }
 
@@ -119,48 +159,26 @@
 
     try{
       const payload = await predictBatch(lines, thr.value || 0.50);
-      console.log("payload:", payload);
-
-      // Normalize response
-      let results = Array.isArray(payload)
-        ? payload
-        : (payload.results || payload.predictions || payload.items || payload.data || []);
-      if (!Array.isArray(results)) {
-        throw new Error("Unexpected response shape: " + JSON.stringify(payload).slice(0,200));
-      }
-
+      let results = payload.results || [];
       tbody.innerHTML = "";
       let foul=0, proper=0;
       results.forEach((r,i)=>{
         const tr = document.createElement("tr");
-
-        // prediction: support number or boolean and multiple keys
-        const yraw = (r.prediction ?? r.label ?? r.y_hat ?? r.yhat ?? r.is_foul);
-        const yhat = (yraw === true) ? 1 : (yraw === false ? 0 : (Number(yraw) || 0));
-
-        const badge = yhat===1
+        const badge = r.prediction===1
           ? '<span class="px-2 py-0.5 rounded text-xs bg-rose-600/20 text-rose-300 border border-rose-700/40">FOUL</span>'
           : '<span class="px-2 py-0.5 rounded text-xs bg-emerald-600/20 text-emerald-300 border border-emerald-700/40">PROPER</span>';
-
-        // probability field variants
-        const p = (r.prob_foul ?? r.prob ?? r.score ?? 0);
-
-        // show backend text if provided; fallback to pasted line
-        const shownText = r.text ? String(r.text) : lines[i];
-
         tr.innerHTML = `
           <td class="p-2 align-top text-zinc-400">${i+1}</td>
-          <td class="p-2 align-top">${escapeHTML(shownText)}</td>
+          <td class="p-2 align-top">${escapeHTML(r.text || lines[i])}</td>
           <td class="p-2 align-top">${badge}</td>
-          <td class="p-2 align-top">${Number(p).toFixed(3)}</td>`;
+          <td class="p-2 align-top">${Number(r.prob_foul).toFixed(3)}</td>`;
         tbody.appendChild(tr);
-        if(yhat===1) foul++; else proper++;
+        if(r.prediction===1) foul++; else proper++;
       });
       tableWrap.classList.remove("hidden");
 
-      const total = results.length;
-      const thrShown = (payload.threshold ?? parseFloat(thr.value || "0.50")).toFixed(2);
-      sumText.innerHTML = `Total: <b>${total}</b> • Proper: <b>${proper}</b> • Foul: <b>${foul}</b> • Threshold: <b>${thrShown}</b>`;
+      const thrUsed = Number(payload.threshold).toFixed(2);
+      sumText.innerHTML = `Total: <b>${results.length}</b> • Proper: <b>${proper}</b> • Foul: <b>${foul}</b> • Threshold (used): <b>${thrUsed}</b>`;
       summary.classList.remove("hidden");
       statusEl.textContent = "Done";
     }catch(err){
@@ -170,6 +188,7 @@
     }
   });
 
+  // ---- CSV export ----
   btnExport.addEventListener("click", ()=>{
     const rows = [["idx","text","prediction","prob_foul"]];
     const trs = [...tbody.querySelectorAll("tr")];
